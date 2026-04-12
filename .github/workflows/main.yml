@@ -64,6 +64,7 @@ jobs:
         run: |
           aws s3 sync docs/ "s3://${{ secrets.S3_BUCKET }}/" \
             --endpoint-url "${{ secrets.S3_ENDPOINT }}" \
+            --no-guess-mime-type \
             --no-progress
 
       # ---- Step 2: 部署 Cloudflare Worker ----
