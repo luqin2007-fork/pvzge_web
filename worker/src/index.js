@@ -156,7 +156,12 @@ async function signRequest(method, url, headers, body, env) {
 function buildS3Url(env, objectKey) {
   const endpoint = (env.S3_ENDPOINT || 'https://s3.hi168.com').replace(/\/$/, '');
   const bucket = env.S3_BUCKET || 'hi168-32227-8062svww';
-  return `${endpoint}/${bucket}/${objectKey}`;
+  // Re-encode each path segment to preserve URL-special characters like # and ?
+  const encodedKey = objectKey
+    .split('/')
+    .map((seg) => encodeURIComponent(seg))
+    .join('/');
+  return `${endpoint}/${bucket}/${encodedKey}`;
 }
 
 /**
@@ -214,7 +219,8 @@ async function handleRequest(request, env, ctx) {
   // If not found and path has no extension, try path/index.html
   if (response.status === 404 || response.status === 403) {
     if (!path.includes('.')) {
-      response = await fetchFromS3(path + '/index.html', env);
+      path = path + '/index.html';
+      response = await fetchFromS3(path, env);
     }
   }
 
