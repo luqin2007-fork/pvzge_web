@@ -28,7 +28,7 @@ jobs:
         with:
           upstream_sync_repo: Gzh0821/pvzge_web # 上游仓库名
           upstream_sync_branch: master             # 上游分支名
-          target_sync_branch: master               # 当前分支名
+          target_sync_branch: devin/1775958182-cloudflare-worker-s3-deploy # 当前分支名
           target_repo_token: ${{ secrets.GITHUB_TOKEN }} # automatically generated, no need to set
 
           # Set test_mode true to run tests instead of the true action!!
