@@ -181,15 +181,27 @@ async function fetchFromS3(objectKey, env) {
  */
 async function handleRequest(request, env, ctx) {
   const url = new URL(request.url);
-  let path = decodeURIComponent(url.pathname);
 
   // Only allow GET and HEAD methods
   if (request.method !== 'GET' && request.method !== 'HEAD') {
     return new Response('Method Not Allowed', { status: 405 });
   }
 
+  // Decode the pathname, rejecting malformed percent-encoding
+  let path;
+  try {
+    path = decodeURIComponent(url.pathname);
+  } catch (e) {
+    return new Response('Bad Request', { status: 400 });
+  }
+
   // Remove leading slash
   path = path.replace(/^\//, '');
+
+  // Reject path traversal attempts
+  if (path.split('/').some((seg) => seg === '..' || seg === '.')) {
+    return new Response('Bad Request', { status: 400 });
+  }
 
   // Default to index.html
   if (path === '' || path.endsWith('/')) {
