@@ -121,9 +121,57 @@ npm run dev
 | `S3_ACCESS_KEY_ID` | S3 访问密钥 ID（桶需要认证时设置） |
 | `S3_SECRET_ACCESS_KEY` | S3 访问密钥（桶需要认证时设置） |
 
+## 自动部署（GitHub Actions CI/CD）
+
+项目已配置 GitHub Actions 自动部署流程（`.github/workflows/main.yml`）：
+
+1. **定时同步上游**：每天 UTC 04:00 自动同步上游仓库 `Gzh0821/pvzge_web` 的 `master` 分支
+2. **自动部署**：同步到新提交后，自动上传资源到 S3 并部署 Cloudflare Worker
+3. **手动触发**：也可在 GitHub Actions 页面手动运行 `workflow_dispatch`
+
+### 需要配置的 Repository Secrets
+
+在仓库的 `Settings → Secrets and variables → Actions` 中设置：
+
+| Secret 名称 | 说明 |
+|-------------|------|
+| `CLOUDFLARE_APP_URL` | 发布的目标域名（不含 `http://` 前缀，如 `play.example.com`） |
+| `CLOUDFLARE_WORKER_API` | Cloudflare API Token（使用「编辑 Cloudflare Workers」模板创建） |
+| `S3_ENDPOINT` | S3 服务地址（如 `https://s3.hi168.com`） |
+| `S3_BUCKET` | S3 存储桶名称（如 `hi168-32227-8062svww`） |
+| `S3_REGION` | S3 区域（如 `us-east-1`） |
+| `S3_ACCESS_KEY_ID` | S3 访问密钥 ID |
+| `S3_SECRET_ACCESS_KEY` | S3 访问密钥 |
+
+### 工作流程
+
+```
+定时/手动触发
+    │
+    ▼
+同步上游 master 分支
+    │
+    ▼ (有新提交 或 手动触发)
+    │
+    ├─► aws s3 sync docs/ → S3 存储桶
+    │
+    └─► wrangler deploy → Cloudflare Worker
+        ├─ 设置 S3 环境变量
+        ├─ 设置 S3 认证密钥
+        └─ 配置自定义域名路由
+```
+
 ## 更新游戏版本
 
-当游戏有新版本时：
+当游戏有新版本时，有两种方式：
+
+### 自动更新（推荐）
+
+上游仓库更新后，GitHub Actions 会自动同步并部署。无需手动操作。
+
+也可以到 GitHub Actions 页面手动点击 `Run workflow` 触发。
+
+### 手动更新
 
 1. 更新 `docs/` 目录中的文件
 2. 重新上传到 S3：

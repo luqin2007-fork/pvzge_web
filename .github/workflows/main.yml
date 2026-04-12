@@ -1,4 +1,4 @@
-name: Upstream Sync
+name: Upstream Sync & Deploy
 
 permissions:
   contents: write
@@ -13,11 +13,13 @@ jobs:
     name: Sync latest commits from upstream repo
     runs-on: ubuntu-latest
     if: ${{ github.event.repository.fork }}
+    outputs:
+      has_new_commits: ${{ steps.sync.outputs.has_new_commits }}
 
     steps:
       # Step 1: run a standard checkout action
       - name: Checkout target repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       # Step 2: run the sync action
       - name: Sync upstream changes
@@ -37,3 +39,75 @@ jobs:
         run: |
           echo "[Error] Due to a change in the workflow file of the upstream repository, GitHub has automatically suspended the scheduled automatic update. You need to manually sync your fork."
           exit 1
+
+  deploy:
+    name: Deploy to Cloudflare Workers
+    needs: sync_latest_from_upstream
+    runs-on: ubuntu-latest
+    # 同步成功后部署；手动触发时始终部署
+    if: |
+      always() &&
+      needs.sync_latest_from_upstream.result == 'success' &&
+      (needs.sync_latest_from_upstream.outputs.has_new_commits == 'true' || github.event_name == 'workflow_dispatch')
+
+    steps:
+      - name: Checkout repo (latest master)
+        uses: actions/checkout@v4
+        with:
+          ref: master
+
+      # ---- Step 1: 上传静态资源到 S3 ----
+      - name: Upload docs to S3
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
+        run: |
+          aws s3 sync docs/ "s3://${{ secrets.S3_BUCKET }}/" \
+            --endpoint-url "${{ secrets.S3_ENDPOINT }}" \
+            --no-progress
+
+      # ---- Step 2: 部署 Cloudflare Worker ----
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Worker dependencies
+        working-directory: worker
+        run: npm install
+
+      - name: Configure custom domain
+        working-directory: worker
+        env:
+          APP_URL: ${{ secrets.CLOUDFLARE_APP_URL }}
+        run: |
+          if [ -n "$APP_URL" ]; then
+            # 从域名中提取 zone_name（取最后两段，如 play.hi168.com → hi168.com）
+            ZONE_NAME=$(echo "$APP_URL" | awk -F. '{print $(NF-1)"."$NF}')
+            echo "" >> wrangler.toml
+            echo "routes = [" >> wrangler.toml
+            echo "  { pattern = \"${APP_URL}/*\", zone_name = \"${ZONE_NAME}\" }" >> wrangler.toml
+            echo "]" >> wrangler.toml
+            echo "Configured route: ${APP_URL}/* (zone: ${ZONE_NAME})"
+          else
+            echo "No CLOUDFLARE_APP_URL set, deploying to workers.dev only"
+          fi
+
+      - name: Deploy Worker
+        working-directory: worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_WORKER_API }}
+        run: |
+          npx wrangler deploy \
+            --var S3_ENDPOINT:"${{ secrets.S3_ENDPOINT }}" \
+            --var S3_BUCKET:"${{ secrets.S3_BUCKET }}" \
+            --var S3_REGION:"${{ secrets.S3_REGION }}" \
+            --var CACHE_TTL:"86400"
+
+      - name: Set Worker secrets
+        working-directory: worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_WORKER_API }}
+        run: |
+          echo "${{ secrets.S3_ACCESS_KEY_ID }}" | npx wrangler secret put S3_ACCESS_KEY_ID
+          echo "${{ secrets.S3_SECRET_ACCESS_KEY }}" | npx wrangler secret put S3_SECRET_ACCESS_KEY
