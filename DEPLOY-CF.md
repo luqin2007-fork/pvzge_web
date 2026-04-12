@@ -17,7 +17,7 @@
 
 1. [Cloudflare 账号](https://dash.cloudflare.com/sign-up)
 2. [Node.js](https://nodejs.org/) >= 18
-3. [AWS CLI v2](https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2.html)（用于上传文件到 S3）
+3. [rclone](https://rclone.org/install/)（用于上传文件到 S3，比 AWS CLI 对第三方 S3 端点兼容性更好）
 4. S3 OSS 的 Access Key 和 Secret Key
 
 ## 部署步骤
@@ -39,11 +39,17 @@ chmod +x upload-to-s3.sh
 ./upload-to-s3.sh
 ```
 
-或手动使用 AWS CLI：
+或手动使用 rclone：
 
 ```bash
-aws s3 sync docs/ s3://hi168-32227-8062svww/ \
-  --endpoint-url https://s3.hi168.com
+export RCLONE_CONFIG_S3_TYPE=s3
+export RCLONE_CONFIG_S3_PROVIDER=Other
+export RCLONE_CONFIG_S3_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID"
+export RCLONE_CONFIG_S3_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY"
+export RCLONE_CONFIG_S3_ENDPOINT="https://s3.hi168.com"
+export RCLONE_CONFIG_S3_REGION="us-east-1"
+
+rclone sync docs/ s3:hi168-32227-8062svww/ -v
 ```
 
 > **提示**：首次上传约 1.2 GB 数据，可能需要较长时间。后续更新只会上传变更的文件。
@@ -153,7 +159,7 @@ npm run dev
     │
     ▼ (有新提交 或 手动触发)
     │
-    ├─► aws s3 sync docs/ → S3 存储桶
+    ├─► rclone sync docs/ → S3 存储桶
     │
     └─► wrangler deploy → Cloudflare Worker
         ├─ 设置 S3 环境变量
