@@ -1,0 +1,29 @@
+# Cloudflare Worker Configuration for PvZ2 Gardendless
+# Documentation: https://developers.cloudflare.com/workers/wrangler/configuration/
+
+name = "pvzge-web"
+main = "src/index.js"
+compatibility_date = "2024-12-01"
+
+# ---- Environment Variables ----
+# Public variables (non-sensitive)
+[vars]
+S3_ENDPOINT = "https://s3.hi168.com"
+S3_BUCKET = "hi168-32227-8062svww"
+S3_REGION = "us-east-1"
+CACHE_TTL = "86400"
+
+# ---- Secrets (set via `wrangler secret put`) ----
+# If your S3 bucket requires authentication, run:
+#   wrangler secret put S3_ACCESS_KEY_ID
+#   wrangler secret put S3_SECRET_ACCESS_KEY
+
+# ---- Custom Domain (optional) ----
+# Uncomment and modify to use a custom domain:
+# routes = [
+#   { pattern = "play.example.com/*", zone_name = "example.com" }
+# ]
+
+# ---- Workers.dev subdomain ----
+# Set to false if using custom domain only
+# workers_dev = true
