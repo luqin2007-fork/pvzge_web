@@ -141,6 +141,7 @@ npm run dev
 
 | Secret 名称 | 说明 |
 |-------------|------|
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare 账户 ID（在 Workers 页面右侧栏可找到） |
 | `CLOUDFLARE_APP_URL` | 发布的目标域名（不含 `http://` 前缀，如 `play.example.com`） |
 | `CLOUDFLARE_WORKER_API` | Cloudflare API Token（使用「编辑 Cloudflare Workers」模板创建） |
 | `S3_ENDPOINT` | S3 服务地址（如 `https://s3.hi168.com`） |
