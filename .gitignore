@@ -1,1 +1,28 @@
 /.vscode
+.idea/
+
+# Dependencies
+node_modules/
+jspm_packages/
+
+# Environment & secrets
+.env
+.env.*
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+dist/
+build/
+
+# Wrangler
+.wrangler/
