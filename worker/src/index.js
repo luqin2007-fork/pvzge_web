@@ -265,7 +265,8 @@ async function handleRequest(request, env, ctx) {
 
   // Build response with proper MIME type and caching headers
   const mimeType = getMimeType(path);
-  const cacheTtl = parseInt(env.CACHE_TTL || '86400', 10) || 86400;
+  const parsed = parseInt(env.CACHE_TTL || '86400', 10);
+  const cacheTtl = Number.isNaN(parsed) ? 86400 : parsed;
 
   const responseHeaders = new Headers(response.headers);
   responseHeaders.set('Content-Type', mimeType);
