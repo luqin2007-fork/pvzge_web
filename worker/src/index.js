@@ -275,6 +275,7 @@ async function handleRequest(request, env, ctx) {
   if (isAllowedOrigin(origin, env)) {
     responseHeaders.set('Access-Control-Allow-Origin', origin);
   }
+  responseHeaders.append('Vary', 'Origin');
 
   // Security headers
   responseHeaders.set('X-Content-Type-Options', 'nosniff');
