@@ -48,7 +48,10 @@ const electron = {
   },
   shell: {
     openExternal: function (url) {
-      return window.open(url, '_blank');
+      // Only allow http(s) URLs to prevent javascript: and other dangerous schemes
+      if (typeof url === 'string' && /^https?:\/\//i.test(url)) {
+        return window.open(url, '_blank', 'noopener,noreferrer');
+      }
     }
   }
 };

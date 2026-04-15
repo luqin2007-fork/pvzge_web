@@ -5,12 +5,13 @@
  * Supports both public and authenticated (AWS Signature V4) access.
  *
  * Environment variables (set in wrangler.toml or Cloudflare dashboard):
- *   S3_ENDPOINT  - S3 service URL, e.g. https://s3.hi168.com
- *   S3_BUCKET    - Bucket name, e.g. hi168-32227-8062svww
+ *   S3_ENDPOINT  - S3 service URL (required)
+ *   S3_BUCKET    - Bucket name (required)
  *   S3_REGION    - Region string for signing (default: us-east-1)
  *   S3_ACCESS_KEY_ID     - (optional) Access Key for signed requests
  *   S3_SECRET_ACCESS_KEY - (optional) Secret Key for signed requests
  *   CACHE_TTL    - Cache-Control max-age in seconds (default: 86400)
+ *   ALLOWED_ORIGINS - Comma-separated list of allowed CORS origins (default: restricts to same-origin)
  */
 
 // MIME type mapping
@@ -154,8 +155,11 @@ async function signRequest(method, url, headers, body, env) {
  * Build the S3 object URL
  */
 function buildS3Url(env, objectKey) {
-  const endpoint = (env.S3_ENDPOINT || 'https://s3.hi168.com').replace(/\/$/, '');
-  const bucket = env.S3_BUCKET || 'hi168-32227-8062svww';
+  const endpoint = (env.S3_ENDPOINT || '').replace(/\/$/, '');
+  const bucket = env.S3_BUCKET;
+  if (!endpoint || !bucket) {
+    throw new Error('S3_ENDPOINT and S3_BUCKET environment variables are required');
+  }
   // Re-encode each path segment to preserve URL-special characters like # and ?
   const encodedKey = objectKey
     .split('/')
@@ -182,10 +186,29 @@ async function fetchFromS3(objectKey, env) {
 }
 
 /**
- * Main request handler
+ * Check if an origin is allowed for CORS
  */
+function isAllowedOrigin(origin, env) {
+  if (!origin) return false;
+  const allowed = env.ALLOWED_ORIGINS;
+  if (!allowed) return false;
+  return allowed.split(',').map((o) => o.trim()).includes(origin);
+}
+
 async function handleRequest(request, env, ctx) {
   const url = new URL(request.url);
+  const origin = request.headers.get('Origin');
+
+  // Handle CORS preflight requests
+  if (request.method === 'OPTIONS') {
+    const headers = { 'Access-Control-Max-Age': '86400' };
+    if (isAllowedOrigin(origin, env)) {
+      headers['Access-Control-Allow-Origin'] = origin;
+      headers['Access-Control-Allow-Methods'] = 'GET, HEAD, OPTIONS';
+      headers['Access-Control-Allow-Headers'] = 'Content-Type';
+    }
+    return new Response(null, { status: 204, headers });
+  }
 
   // Only allow GET and HEAD methods
   if (request.method !== 'GET' && request.method !== 'HEAD') {
@@ -242,12 +265,23 @@ async function handleRequest(request, env, ctx) {
 
   // Build response with proper MIME type and caching headers
   const mimeType = getMimeType(path);
-  const cacheTtl = parseInt(env.CACHE_TTL || '86400', 10);
+  const parsed = parseInt(env.CACHE_TTL || '86400', 10);
+  const cacheTtl = Number.isNaN(parsed) ? 86400 : parsed;
 
   const responseHeaders = new Headers(response.headers);
   responseHeaders.set('Content-Type', mimeType);
   responseHeaders.set('Cache-Control', `public, max-age=${cacheTtl}`);
-  responseHeaders.set('Access-Control-Allow-Origin', '*');
+
+  // CORS: only reflect allowed origins instead of wildcard
+  if (isAllowedOrigin(origin, env)) {
+    responseHeaders.set('Access-Control-Allow-Origin', origin);
+  }
+  responseHeaders.append('Vary', 'Origin');
+
+  // Security headers
+  responseHeaders.set('X-Content-Type-Options', 'nosniff');
+  responseHeaders.set('X-Frame-Options', 'SAMEORIGIN');
+  responseHeaders.set('Referrer-Policy', 'strict-origin-when-cross-origin');
 
   // Remove S3-specific headers
   responseHeaders.delete('x-amz-request-id');

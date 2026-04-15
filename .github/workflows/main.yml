@@ -60,7 +60,10 @@ jobs:
       # 使用 rclone 替代 aws-cli，因为 aws-cli v2.34+ 对第三方 S3 端点有已知 bug
       # (aws/aws-cli#10161: 空 <Message/> XML 导致 NoneType 崩溃)
       - name: Install rclone
-        run: curl https://rclone.org/install.sh | sudo bash
+        run: |
+          curl -O https://downloads.rclone.org/v1.68.2/rclone-v1.68.2-linux-amd64.deb
+          sudo dpkg -i rclone-v1.68.2-linux-amd64.deb
+          rm rclone-v1.68.2-linux-amd64.deb
 
       - name: Upload docs to S3
         env:
