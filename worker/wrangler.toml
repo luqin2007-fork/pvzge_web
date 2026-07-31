@@ -12,6 +12,9 @@ S3_ENDPOINT = "https://s3.hi168.com"
 S3_BUCKET = "hi168-32227-8062svww"
 S3_REGION = "us-east-1"
 CACHE_TTL = "86400"
+# Comma-separated list of allowed CORS origins (leave empty to block cross-origin requests)
+# Example: "https://play.pvzge.com,https://example.com"
+ALLOWED_ORIGINS = ""
 
 # ---- Secrets (set via `wrangler secret put`) ----
 # If your S3 bucket requires authentication, run:
